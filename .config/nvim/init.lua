@@ -257,6 +257,9 @@ require('lazy').setup({
   { 'github/copilot.vim' },
 })
 
+-- Disable line wrapping
+vim.opt.wrap = false
+
 -- Auto-reload files changed on disk
 vim.o.autoread = true
 vim.api.nvim_create_autocmd({'FocusGained', 'BufEnter', 'CursorHold', 'CursorHoldI'}, {
