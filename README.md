@@ -1,178 +1,196 @@
 # dotfiles
-All the configuratoin, binaries and dot files for a "clean" system
+Configuration files and scripts for my development environment.
 
-## Tmux
-Start tmux either by runnin tmux. Use tmux attach to start tmux and attach to a already running session. Or use wdtmux which starts or attaches to a tmux session named by convention using current directory.
+## What's included
+
+| File / Directory         | Description                                              |
+|:-------------------------|:---------------------------------------------------------|
+| `.config/nvim/init.lua`  | Neovim config with lazy.nvim, LSP, treesitter, telescope |
+| `.vimrc`                 | Shared vim/nvim settings, keymaps, and OpenIDE bindings  |
+| `.tmux.conf`             | Tmux config with vi keys and prefix Ctrl+A               |
+| `.zshrc`                 | Zsh config with oh-my-zsh, vi-mode, SDKMAN, NVM, pnpm   |
+| `.zshenv`                | Zsh environment (Flutter SDK path)                       |
+| `.bashrc`                | Bash config with vi mode, SDKMAN, NVM                    |
+| `.gitconfig`             | Git user config and core settings                        |
+| `.config/git/ignore`     | Global gitignore                                         |
+| `.Xmodmap`               | X keyboard mapping (Insert key fix)                      |
+| `.emacs`                 | Emacs config with evil mode (legacy)                     |
+| `.vim/`                  | Pathogen plugins and color schemes (used by plain vim)   |
+| `bin/`                   | Helper scripts (wdtmux, oivim, tmux tools, OpenIDE)     |
+
+## Neovim
+
+Primary editor. Sources `.vimrc` for base settings, then layers on modern plugins via lazy.nvim.
+
+### Plugins
+
+| Plugin                   | Purpose                                    |
+|:-------------------------|:-------------------------------------------|
+| nvim-treesitter          | Syntax highlighting and indentation        |
+| nvim-lspconfig           | LSP support (csharp_ls)                    |
+| nvim-cmp                 | Autocompletion (LSP, buffer, path, snippets) |
+| telescope.nvim           | Fuzzy finder for files, grep, and buffers  |
+| gruvbox.nvim             | Color scheme with transparent mode         |
+| lualine.nvim             | Status line                                |
+| gitsigns.nvim            | Git signs in the gutter                    |
+| indent-blankline.nvim    | Indent guides                              |
+| vim-dadbod-ui            | Database UI and SQL completion             |
+| render-markdown.nvim     | Inline markdown rendering                  |
+| copilot.vim              | GitHub Copilot                             |
+| nerdtree                 | File explorer                              |
+| vim-fugitive             | Git commands                               |
+| vim-visual-multi         | Multiple cursors                           |
+| delimitMate              | Auto-close brackets/quotes                 |
+| LuaSnip                  | Snippet engine                             |
+
+### Keybindings (Neovim-specific)
 
 | Keyboard shortcut                         | Description                                     |
 |:------------------------------------------|:------------------------------------------------|
-| Ctrl+A, "                                 | Split pane horizontally                         |
-| Ctrl+A, %                                 | Split pane vertically                           |
-| Ctrl+A, r                                 | Split pane horizontally small                   |
-| Ctrl+A, t                                 | Split pane vertically small                     |
-| Ctrl+A, x                                 | Close pane                                      |
-| Ctrl+A, h                                 | Select left pane                                |
-| Ctrl+A, j                                 | Select pane below                               |
-| Ctrl+A, k                                 | Select pane above                               |
-| Ctrl+A, l                                 | Select right pane                               |
-| Ctrl+A, b                                 | Toggle zoom on other pane                       |
-| Ctrl+A, c                                 | Create new window (tab)                         |
-| Ctrl+A, [0-9]                             | Select window                                   |
-| Ctrl+A, o                                 | Toggle last window                              |
-| Ctrl+A, n                                 | Select next window                              |
-| Ctrl+A, v                                 | Enter select mode                               |
-| ---> vim keys, navigation keys            | To navigate                                     |
-| ---> v                                    | Start text selection                            |
-| ---> y                                    | Yank the text to tmux buffer                    |
-| Ctrl+A, p                                 | Past text from tmux buffer                      |
-| Ctrl+A, y                                 | Copy text from tmux buffer to xclipboard        |
-| Ctrl+A, z                                 | Toggle zoom for active pane                     |
-| Ctrl+A, w                                 | Choose between open windows                     |
-| Ctrl+A, s                                 | Choose between running tmux sessions            |
-| Ctrl+A, d                                 | Detach from a running tmux session              |
+| **LSP**                                   |                                                 |
+| gd                                        | Go to definition                                |
+| gr                                        | Find references                                 |
+| K                                         | Hover documentation                             |
+| ,rn                                       | Rename symbol                                   |
+| ,ca                                       | Code action                                     |
+| [d                                        | Previous diagnostic                             |
+| ]d                                        | Next diagnostic                                 |
 |                                           |                                                 |
-| Commands                                  | Description                                     |
-| set synchronize-panes on/off              | Write in all panes of a window at once          |
+| **Telescope**                             |                                                 |
+| Ctrl+p                                    | Find files                                      |
+| Ctrl+g                                    | Live grep                                       |
+| ,fb                                       | Find buffers                                    |
+|                                           |                                                 |
+| **Build / Test**                          |                                                 |
+| ,b                                        | Build project (auto-detects dotnet/npm/make)    |
+| ,t                                        | Run tests (auto-detects dotnet/npm/pytest)      |
+|                                           |                                                 |
+| **Database (vim-dadbod)**                 |                                                 |
+| ,db                                       | Toggle DB UI                                    |
+| F5 (in SQL buffer)                        | Execute query                                   |
 
-## Vim
-Use oivim to start OpenIDE running vim in a terminal.
+## Vim / Shared Keybindings
+
+These keybindings are defined in `.vimrc` and work in both vim and nvim. Leader key is `,`.
 
 | Keyboard shortcut                         | Description                                     |
 |:------------------------------------------|:------------------------------------------------|
-| Navigation                                |                                                 |
+| **Navigation**                            |                                                 |
 | h/j/k/l                                   | Navigate left/down/up/right                     |
-| w                                         | Navigate to begining of next word               |
-| e                                         | Navigate to end of next word                    |
-| b                                         | Navigate to beginning of previous word          |
-| ge                                        | Navigate to end of previous word                |
-| $                                         | Navigate to end of line                         |
-| Ctrl+k                                    | Navigate to end of line and enter inster mode   |
-| Ctrl+d                                    | Navigate half a page down                       |
-| Ctrl+u                                    | Navigate half a page up                         |
-| }                                         | Navigate down to next empty line                |
-| {                                         | Navigate up to next empty line                  |
-| _                                         | Navigate to first character in line             |
-| g0                                        | Navigate to column 0 of line                    |
-| %                                         | Navigate to matching (/[/{/..                   |
-| [NUM]k                                    | Move [NUM] lines up                             |
-| [NUM]j                                    | Move [NUM] lines down                           |
-| [NUM]h                                    | Move [NUM] columns left                         |
-| [NUM]l                                    | Move [NUM] columns right                        |
-| gg                                        | Move to top                                     |
-| G                                         | Move to bottom                                  |
-| ''                                        | Move to last cursor position                    |
-| Ctrl+o                                    | Move backward in cursor history                 |
-| Ctrl+i                                    | Move forward in cursor history                  |
-| Ctrl+k, Ctrl+b                            | Toggle NERDTree                                 |
-| Ctrl+k, Ctrl+f                            | Open current file in NERDTree                   |
-| Ctrl+w, s                                 | Split buffer horizontally                       |
-| Ctrl+w, v                                 | Split buffer vertically                         |
-| Ctrl+w, h/j/k/l                           | Navigate between buffers in a window            |
-| Ctrl+w, t                                 | Open new tab                                    |
-| Ctrl+w, T                                 | Open current file in new tab                    |
-| Ctrl+w, c                                 | Close buffer                                    |
+| w / e / b / ge                            | Word navigation (next/end/prev/prev-end)        |
+| $ / _                                     | End of line / first character in line            |
+| Ctrl+d / Ctrl+u                           | Half page down / up                             |
+| { / }                                     | Previous / next empty line                      |
+| gg / G                                    | Top / bottom of file                            |
+| % / ''                                    | Matching bracket / last cursor position         |
+| Ctrl+o / Ctrl+i                           | Backward / forward in cursor history            |
+| [SPACE]                                   | Search                                          |
+| q[SPACE] / q/                             | Clear search                                    |
+| Ctrl+q                                    | Clear search highlight                          |
+| * / #                                     | Search forward / backward for word under cursor |
+| n / N                                     | Next / previous search hit                      |
+| zz                                        | Center page on cursor                           |
+|                                           |                                                 |
+| **Windows / Tabs**                        |                                                 |
+| Ctrl+w, v                                 | Vertical split                                  |
+| Ctrl+w, s                                 | Horizontal split                                |
+| Ctrl+w, h/j/k/l                           | Navigate between splits                         |
+| Ctrl+w, \                                 | Zoom into current split                         |
+| Ctrl+w, =                                 | Equalize split sizes                            |
+| Ctrl+w, [ARROW]                           | Resize split in direction                       |
+| Ctrl+w, t                                 | New tab                                         |
 | Ctrl+w, e                                 | Close tab                                       |
 | Ctrl+w, u                                 | Next tab                                        |
-| Ctrl+w, \                                 | Zoom in to current buffer                       |
-| Ctrl+w, =                                 | Resize buffers in window                        |
-| Ctrl+w, [ARROW]                           | Resize buffer in direction                      |
-| Alt, [NUM]                                | Open tab [NUM] (may not work in terminal)       |
-| yy[NUM]                                   | Open tab [NUM]                                  |
-| /                                         | Search                                          |
-| [SPACE]                                   | Search                                          |
-| q[SPACE]                                  | Clear search                                    |
-| /[SPACE]                                  | Clear search                                    |
-| *                                         | Search forward for word under cursor            |
-| #                                         | Search backward for word under cursor           |
-| n                                         | Move to next hit in search                      |
-| Shift+n                                   | Move to previous hit in search                  |
-| Ctrl+q                                    | Clear search                                    |
-| zz                                        | Resenter page to center of page                 |
+| Alt+[NUM] / yy[NUM]                       | Go to tab [NUM]                                 |
 |                                           |                                                 |
-| Selection                                 |                                                 |
-| yy                                        | Yank current line                               |
-| yiw                                       | Yank inner word                                 |
-| diw                                       | Delete inner word                               |
-| viw                                       | Select inner word                               |
-| y[MOTION]                                 | Yank using motion - yw (yank word)              |
-| d[MOTION]                                 | Delete using motion - dw (delete word)          |
-| v[MOTION]                                 | Select using motion - vw (select word)          |
-| y[NUM][MOTION]                            | Yank motion repeat - y4w (yank 4 words)         |
-| d[NUM][MOTION]                            | Delete motion repeat - d4w (delete 4 words)     |
-| v[NUM][MOTION]                            | Select motion repeat - v4w (select 4 words)     |
-| Ctrl+v                                    | Start block select                              |
-| vap                                       | Select between empty lines                      |
+| **File explorer (NERDTree)**              |                                                 |
+| Ctrl+k, Ctrl+b                            | Toggle NERDTree                                 |
+| Ctrl+k, Ctrl+h                            | Focus NERDTree                                  |
+| Ctrl+k, Ctrl+f                            | Reveal current file in NERDTree                 |
+|                                           |                                                 |
+| **Selection**                             |                                                 |
+| v[MOTION]                                 | Visual select (vw, v4w, viw, vi{, vap, etc.)   |
+| Ctrl+v                                    | Block select                                    |
 | vaj                                       | Select to last character in line                |
 | vak                                       | Select from first to last position in line      |
 | val                                       | Select from first to last character in line     |
-| viw                                       | Select inner word                               |
-| vi[CHAR]                                  | Select inside (/)/[/]/{/}/...                   |
-| va[CHAR]                                  | Select outside (/)/[/]/{/}/...                  |
 |                                           |                                                 |
-| When text is selected                     |                                                 |
-| y                                         | Yank text                                       |
-| c                                         | Delete, yank and enter insert mode              |
-| d                                         | Delete selection and yank                       |
-| ,d                                        | Delete selection without yank                   |
-| o                                         | Move to end of selected text                    |
-| O                                         | Move to begining of selected text               |
-| "+y                                       | Yank to X-clipboard                             |
-| "+v                                       | Paste from X-clipboard                          |
-| Ctrl+n                                    | Multicursor selection                           |
-|                                           |                                                 |
-| Modification                              |                                                 |
-| dd                                        | Delete line and yank line                       |
-| diw                                       | Delete line and yank line                       |
-| d{                                        | Delete to previous backspace                    |
-| d                                         | Delete to next backspace                        |
-| d$                                        | Delete to end of line and yank                  |
-| ,dd                                       | Delete line without yank                        |
-| ,d$                                       | Delete to end of line without yank              |
-| p                                         | Past previously ynaked content                  |
-| u                                         | Undo                                            |
-| Ctrl+r                                    | Redo                                            |
-| r[CHAR]                                   | Add replace current character with [CHAR]       |
-| Ctrl+k                                    | Add semicolon to end of line                    |
-| Ctrl+n                                    | Multicursor selection using word under cursor   |
+| **Editing**                               |                                                 |
+| ,d                                        | Delete without yanking                          |
+| ,p                                        | Replace selection without yanking               |
+| p / u / Ctrl+r                            | Paste / undo / redo                             |
+| Ctrl+l                                    | Append semicolon to end of line                 |
+| Ctrl+k                                    | Jump to end of line and enter insert mode       |
 | Ctrl+f,[NUM]                              | Wrap in {} from line end, indent NUM lines down |
+| jj                                        | Escape (in insert mode)                         |
 | F10                                       | Toggle paste mode                               |
 |                                           |                                                 |
-| In insert mode                            |                                                 |
-| jj                                        | Escape                                          |
+| **Multi-cursor**                          |                                                 |
+| Ctrl+n                                    | Start/extend multi-cursor on word under cursor  |
+| Ctrl+x                                    | Skip current match                              |
+| Ctrl+p                                    | Go back one match                               |
 |                                           |                                                 |
-| Multicursor                               |                                                 |
-| Ctrl+n                                    | Multicursor selection using word under cursor   |
-| Ctrl+n                                    | If already in multicursor select next           |
-| Ctrl+x                                    | If already in multicursor skip current          |
-| Ctrl+p                                    | If already in multicursor jump one back         |
-|                                           |                                                 |
-| OpenIDE                                   |                                                 |
-| F5                                        | Trigger oi run in terminal view                 |
-| Alt+o / yyo                               | Complete snippet                                |
-| Ctrl+h                                    | Run tamper at caret                             |
-| Alt+g / yyg                               | Run navigate at caret                           |
-| Alt+l / yyl                               | Run command at caret                            |
-| Alt+d / yyd                               | Go to definition                                |
-| Ctrl+Shift+y                              | Type search                                     |
-| Ctrl+Shift+j                              | Focus ContinuousTests                           |
-| Alt+Shift+y                               | Go to type by extension                         |
-| Alt+r / yyr                               | Run evaluate at caret                           |
-| Alt+e / yye                               | Run evaluate file at caret                      |
-| Alt+n / yyn                               | New at caret                                    |
-| Alt+f / yyf                               | Find interactive                                |
-| Alt+f, a / yyfa                           | Find all interactive                            |
-| Alt+f, w / yyfw                           | Find word at caret                              |
-| Alt+f, y / yyfy                           | Find yml interactive                            |
-| Alt+w, e                                  | Evaluate and append selection in repl           |
-| Alt+w, r                                  | Run selection in repl                           |
-| Alt+w, q                                  | Clear repl                                      |
-|                                           |                                                 |
-| Other                                     |                                                 |
+| **Other**                                 |                                                 |
 | Ctrl+s                                    | Save                                            |
 | Ctrl+Shift+s                              | Save all                                        |
-| Ctrl+x, Ctrl+x                            | Exit vim                                        |
-| q, [key]                                  | Start recording for key [key]                   |
-| <esc>qq                                   | Stop recording                                  |
-| @[key]                                    | Run recording stored in [key]                   |
-| [NUM]@[key]                               | Run recording stored in [key] NUM times         |
+| Ctrl+x, Ctrl+x                            | Quit                                            |
+| "+y                                       | Yank to X clipboard                             |
+| "+p                                       | Paste from X clipboard                          |
+| q[key] ... q                              | Record macro into [key]                         |
+| @[key]                                    | Play macro from [key]                           |
+| [NUM]@[key]                               | Play macro NUM times                            |
 
+## Tmux
+
+Prefix is `Ctrl+A`. Start with `tmux` or use `wdtmux` to create/attach a session named after the current directory.
+
+| Keyboard shortcut                         | Description                                     |
+|:------------------------------------------|:------------------------------------------------|
+| **Panes**                                 |                                                 |
+| Ctrl+A, "                                 | Split horizontally                              |
+| Ctrl+A, %                                 | Split vertically                                |
+| Ctrl+A, r                                 | Split horizontally (small)                      |
+| Ctrl+A, t                                 | Split vertically (small)                        |
+| Ctrl+A, h/j/k/l                           | Navigate panes                                  |
+| Ctrl+A, x                                 | Close pane                                      |
+| Ctrl+A, z                                 | Toggle zoom on active pane                      |
+| Ctrl+A, b                                 | Toggle zoom on other pane                       |
+| Ctrl+A, H/J/K/L                           | Resize pane in direction                        |
+|                                           |                                                 |
+| **Windows**                               |                                                 |
+| Ctrl+A, c                                 | New window                                      |
+| Ctrl+A, [0-9]                             | Select window by number                         |
+| Ctrl+A, o                                 | Toggle last window                              |
+| Ctrl+A, + / -                             | Next / previous window                          |
+| Ctrl+A, w                                 | Choose between open windows                     |
+|                                           |                                                 |
+| **Sessions**                              |                                                 |
+| Ctrl+A, s                                 | Choose between running sessions                 |
+| Ctrl+A, d                                 | Detach from session                             |
+|                                           |                                                 |
+| **Copy mode (vi keys)**                   |                                                 |
+| Ctrl+A, v                                 | Enter copy mode                                 |
+| v                                         | Start selection                                 |
+| y                                         | Yank selection                                  |
+| Ctrl+A, p                                 | Paste from tmux buffer                          |
+| Ctrl+A, y                                 | Copy tmux buffer to X clipboard                 |
+|                                           |                                                 |
+| **Commands**                              |                                                 |
+| set synchronize-panes on/off              | Type in all panes at once                       |
+
+## Zsh
+
+Uses oh-my-zsh with `robbyrussell` theme and plugins: `git`, `vi-mode`, `history-substring-search`.
+
+Key features:
+- `vim` is aliased to `nvim`
+- Vi keybindings in the shell
+- Caps Lock mapped to Escape (X11 only)
+- Dotnet CLI completion
+- SDKMAN, NVM, and pnpm configured
+- `mkcd [dir]` - create directory and cd into it
+- `wdtmux` - tmux session per working directory
+
+## OpenIDE
+
+Legacy IDE integration bindings available in `.vimrc` (prefixed with `yy` or `Alt`). See `.vimrc` for the full list.
