@@ -1,0 +1,266 @@
+-- Ensure dotnet tools are in PATH
+vim.env.PATH = vim.env.HOME .. '/.dotnet/tools:' .. vim.env.PATH
+
+-- Source existing vimrc (keymaps, settings, etc.)
+vim.cmd('source ~/.vimrc')
+
+-- Disable syntastic and supertab in neovim (replaced by LSP + nvim-cmp)
+vim.g.syntastic_mode_map = { mode = 'passive' }
+vim.g.loaded_supertab = 1
+
+-- Bootstrap lazy.nvim
+local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+if not vim.loop.fs_stat(lazypath) then
+  vim.fn.system({
+    'git', 'clone', '--filter=blob:none',
+    'https://github.com/folke/lazy.nvim.git',
+    '--branch=stable', lazypath,
+  })
+end
+vim.opt.rtp:prepend(lazypath)
+
+require('lazy').setup({
+  -- Treesitter: modern syntax highlighting
+  {
+    'nvim-treesitter/nvim-treesitter',
+    tag = 'v0.9.3',
+    build = ':TSUpdate',
+    config = function()
+      require('nvim-treesitter.configs').setup({
+        ensure_installed = { 'c_sharp', 'lua', 'vim', 'vimdoc', 'json', 'yaml', 'xml', 'bash', 'sql' },
+        highlight = { enable = true },
+        indent = { enable = true },
+      })
+    end,
+  },
+
+  -- LSP
+  {
+    'neovim/nvim-lspconfig',
+    tag = 'v0.1.9',
+    config = function()
+      local lspconfig = require('lspconfig')
+      -- C# language server (install with: dotnet tool install --global csharp-ls)
+      lspconfig.csharp_ls.setup{}
+
+      -- Keymaps for LSP (only active when LSP attaches)
+      vim.api.nvim_create_autocmd('LspAttach', {
+        callback = function(ev)
+          local opts = { buffer = ev.buf }
+          vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
+          vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
+          vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
+          vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, opts)
+          vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
+          vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, opts)
+          vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
+
+          -- Disable LSP semantic token highlighting (let treesitter handle it)
+          local client = vim.lsp.get_client_by_id(ev.data.client_id)
+          if client and client.server_capabilities.semanticTokensProvider then
+            client.server_capabilities.semanticTokensProvider = nil
+          end
+        end,
+      })
+    end,
+  },
+
+  -- Autocompletion
+  {
+    'hrsh7th/nvim-cmp',
+    dependencies = {
+      'hrsh7th/cmp-nvim-lsp',
+      'hrsh7th/cmp-buffer',
+      'hrsh7th/cmp-path',
+      'L3MON4D3/LuaSnip',
+      'saadparwaiz1/cmp_luasnip',
+    },
+    config = function()
+      local cmp = require('cmp')
+      local luasnip = require('luasnip')
+      cmp.setup({
+        snippet = {
+          expand = function(args) luasnip.lsp_expand(args.body) end,
+        },
+        mapping = cmp.mapping.preset.insert({
+          ['<C-Space>'] = cmp.mapping.complete(),
+          ['<CR>'] = cmp.mapping.confirm({ select = true }),
+          ['<Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+          ['<S-Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+        }),
+        sources = cmp.config.sources({
+          { name = 'nvim_lsp' },
+          { name = 'luasnip' },
+        }, {
+          { name = 'buffer' },
+          { name = 'path' },
+        }),
+      })
+
+      -- Add vim-dadbod-completion for SQL filetypes
+      cmp.setup.filetype({ 'sql', 'mysql', 'plsql' }, {
+        sources = cmp.config.sources({
+          { name = 'vim-dadbod-completion' },
+        }, {
+          { name = 'buffer' },
+        }),
+      })
+    end,
+  },
+
+  -- Telescope (fuzzy finder, replaces ctrlp)
+  {
+    'nvim-telescope/telescope.nvim',
+    branch = '0.1.x',
+    lazy = false,
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    keys = {
+      { '<C-p>', '<cmd>Telescope find_files<cr>' },
+      { '<C-g>', '<cmd>Telescope live_grep<cr>' },
+      { '<leader>fb', '<cmd>Telescope buffers<cr>' },
+    },
+  },
+
+  -- Render markdown inline
+  {
+    'MeanderingProgrammer/render-markdown.nvim',
+    ft = { 'markdown' },
+    dependencies = { 'nvim-treesitter/nvim-treesitter' },
+  },
+
+  -- Database (vim-dadbod)
+  {
+    'kristijanhusak/vim-dadbod-ui',
+    dependencies = {
+      'tpope/vim-dadbod',
+      { 'kristijanhusak/vim-dadbod-completion', ft = { 'sql', 'mysql', 'plsql' } },
+    },
+    cmd = { 'DBUI', 'DBUIToggle', 'DBUIAddConnection', 'DBUIFindBuffer' },
+    keys = {
+      { '<leader>db', '<cmd>DBUIToggle<cr>', desc = 'Toggle DB UI' },
+    },
+    init = function()
+      vim.g.db_ui_use_nerd_font_icons = 1
+      vim.g.db_ui_execute_on_save = 0
+    end,
+    config = function()
+      -- Ctrl+Enter to execute query (normal: whole buffer, visual: selection)
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = { 'sql', 'mysql', 'plsql', 'dbout' },
+        callback = function()
+          vim.keymap.set('n', '<F5>', '<Plug>(DBUI_ExecuteQuery)', { buffer = true })
+          vim.keymap.set('v', '<F5>', '<Plug>(DBUI_ExecuteQuery)', { buffer = true })
+        end,
+      })
+    end,
+  },
+
+  -- File icons (used by lualine, telescope, nerdtree, etc.)
+  { 'nvim-tree/nvim-web-devicons' },
+
+  -- Status line
+  {
+    'nvim-lualine/lualine.nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    config = function()
+      require('lualine').setup({
+        options = {
+          theme = 'gruvbox',
+          section_separators = '',
+          component_separators = '|',
+        },
+      })
+    end,
+  },
+
+  -- Git signs in the gutter
+  {
+    'lewis6991/gitsigns.nvim',
+    config = function()
+      require('gitsigns').setup()
+    end,
+  },
+
+  -- Indent guides
+  {
+    'lukas-reineke/indent-blankline.nvim',
+    main = 'ibl',
+    config = function()
+      require('ibl').setup({
+        indent = { char = '|' },
+        scope = { enabled = true },
+      })
+    end,
+  },
+
+  -- Keep your existing pathogen plugins working in neovim
+  { 'tpope/vim-fugitive' },
+  { 'preservim/nerdtree' },
+  { 'Raimondi/delimitMate' },
+  -- { 'easymotion/vim-easymotion' },
+  { 'mg979/vim-visual-multi' },  -- modern replacement for vim-multiple-cursors
+  { 'ellisonleao/gruvbox.nvim' },
+  { 'github/copilot.vim' },
+})
+
+-- Auto-reload files changed on disk
+vim.o.autoread = true
+vim.api.nvim_create_autocmd({'FocusGained', 'BufEnter', 'CursorHold', 'CursorHoldI'}, {
+  command = 'checktime',
+})
+
+vim.o.termguicolors = true
+
+-- Re-apply gruvbox after lazy loads it
+require('gruvbox').setup({
+  transparent_mode = true,
+  contrast = "soft",
+  overrides = {
+    String = { fg = "#dbb68a", bg = "NONE" },
+    Comment = { fg = "#a89984", bg = "NONE" },
+    ["@string"] = { fg = "#dbb68a", bg = "NONE" },
+    ["@comment"] = { fg = "#a89984", bg = "NONE" },
+  },
+})
+vim.cmd('colorscheme gruvbox')
+
+-- Build with :make — auto-detect makeprg based on project files
+vim.api.nvim_create_autocmd('BufEnter', {
+  group = vim.api.nvim_create_augroup('SetMakeprg', { clear = true }),
+  callback = function()
+    if vim.fn.glob('*.sln') ~= '' or vim.fn.glob('*.csproj') ~= '' then
+      vim.opt_local.makeprg = 'dotnet build'
+    elseif vim.fn.filereadable('package.json') == 1 then
+      vim.opt_local.makeprg = 'npm run build'
+    elseif vim.fn.filereadable('Makefile') == 1 then
+      vim.opt_local.makeprg = 'make'
+    end
+  end,
+})
+
+vim.keymap.set('n', '<leader>b', ':make!<CR>', { desc = 'Build project' })
+vim.keymap.set('n', '<leader>t', function()
+  if vim.fn.glob('*.sln') ~= '' or vim.fn.glob('*.csproj') ~= '' then
+    vim.cmd('!dotnet test')
+  elseif vim.fn.filereadable('package.json') == 1 then
+    vim.cmd('!npm test')
+  elseif vim.fn.filereadable('pytest.ini') == 1 or vim.fn.filereadable('setup.py') == 1 or vim.fn.filereadable('pyproject.toml') == 1 then
+    vim.cmd('!pytest')
+  end
+end, { desc = 'Run tests' })

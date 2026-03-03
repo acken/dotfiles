@@ -5,3 +5,6 @@
         ui = auto
 [push]
 	default = simple
+[core]
+	filemode = false
+	autocrlf = false
