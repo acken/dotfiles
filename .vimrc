@@ -1,6 +1,9 @@
 
-execute pathogen#infect()
-call plug#begin('~/.vim/plugged')
+if !has('nvim')
+  execute pathogen#infect()
+  call plug#begin('~/.vim/plugged')
+  call plug#end()
+endif
 
 set encoding=utf-8
 
@@ -13,7 +16,7 @@ endif
 
 let g:gruvbox_italic=0
 set background=dark
-colorscheme gruvbox
+silent! colorscheme gruvbox
 
 filetype on
 filetype plugin on
@@ -42,14 +45,16 @@ set mouse=a
 "    " tmux knows the extended mouse mode
 "    set ttymouse=xterm2
 "endif
-if has("mouse_sgr")
-    set ttymouse=sgr
-else
-    set ttymouse=xterm2
-end
+if !has('nvim')
+  if has("mouse_sgr")
+      set ttymouse=sgr
+  else
+      set ttymouse=xterm2
+  end
+endif
 
-hi Normal ctermbg=none
-highlight NonText ctermbg=none
+" hi Normal ctermbg=none
+" highlight NonText ctermbg=none
 
 set scrolloff=10
 
@@ -80,7 +85,7 @@ map vaip op
 " Make vim handle windowing stuff
 set guioptions-=a
 set guifont=Monospace\ 9
-set guitablabel=\[%N\]\ %t\ %M 
+set guitablabel=\[%N\]\ %t\ %M
 
 " Make word wrapping and selection work more sane
 "behave mswin
@@ -317,13 +322,15 @@ function! MyAppendToEnd(valueToAdd)
     call cursor(ln,cl)
 endfunction
 
-" Make alt key work in terminal
-let c='a'
-while c <= 'z'
-  exec "set <A-".c.">=\e".c
-  exec "imap \e".c." <A-".c.">"
-  let c = nr2char(1+char2nr(c))
-endw
+" Make alt key work in terminal (not needed in neovim)
+if !has('nvim')
+  let c='a'
+  while c <= 'z'
+    exec "set <A-".c.">=\e".c
+    exec "imap \e".c." <A-".c.">"
+    let c = nr2char(1+char2nr(c))
+  endw
+endif
 set timeoutlen=1000 ttimeoutlen=0
 
 vnoremap r "hy:%s/<C-r>h//gc<left><left><left>
@@ -348,7 +355,7 @@ vnoremap <C-r> h:s///g<left><left><left>
 "    normal >
 "    normal gv
 "endfunction
- 
+
 "function! My_unindent(mode)
 "    normal gv
 "    normal <
@@ -644,6 +651,7 @@ map <C-k><C-b> :NERDTreeToggle<CR>
 map <C-k><C-h> :NERDTreeFocus<CR>
 map <C-k><C-f> :NERDTreeFind<CR>
 let g:NERDTreeWinSize=50
+let g:NERDTreeQuitOnOpen=1
 
 " enable line numbers
 let NERDTreeShowLineNumbers=1
@@ -651,27 +659,28 @@ let NERDTreeShowLineNumbers=1
 autocmd FileType nerdtree setlocal relativenumber
 
 map <C-x><C-x> <esc>:qa<cr>
-map <C-x><C-x> :qa<cr> 
+map <C-x><C-x> :qa<cr>
 
 set laststatus=2
 
-map <Leader> <Plug>(easymotion-prefix)
-
-map  / <Plug>(easymotion-sn)
-omap / <Plug>(easymotion-tn)
+" map <Leader> <Plug>(easymotion-prefix)
+" map  / <Plug>(easymotion-sn)
+" omap / <Plug>(easymotion-tn)
 
 filetype plugin on
 set omnifunc=syntaxcomplete#Complete
 
 set statusline=%F%m%r%h%w\ %v:%l\ %L\ %p%%
-set statusline+=%#warningmsg#
-set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
+if !has('nvim')
+  set statusline+=%#warningmsg#
+  set statusline+=%{SyntasticStatuslineFlag()}
+  set statusline+=%*
 
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 1
-let g:syntastic_check_on_open = 1
-let g:syntastic_check_on_wq = 0
+  let g:syntastic_always_populate_loc_list = 1
+  let g:syntastic_auto_loc_list = 1
+  let g:syntastic_check_on_open = 1
+  let g:syntastic_check_on_wq = 0
+endif
 let g:SuperTabDefaultCompletionType = "<c-n>"
 
 let g:fsharp_xbuild_path = "/usr/bin/xbuild"
