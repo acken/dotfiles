@@ -85,7 +85,7 @@ map vaip op
 " Make vim handle windowing stuff
 set guioptions-=a
 set guifont=Monospace\ 9
-set guitablabel=\[%N\]\ %t\ %M
+set guitablabel=\[%N\]\ %t\ %M 
 
 " Make word wrapping and selection work more sane
 "behave mswin
@@ -355,7 +355,7 @@ vnoremap <C-r> h:s///g<left><left><left>
 "    normal >
 "    normal gv
 "endfunction
-
+ 
 "function! My_unindent(mode)
 "    normal gv
 "    normal <
@@ -647,19 +647,10 @@ nnoremap <silent> <C-w>d :close<CR>
 nnoremap <silent> <C-w>d :bdelete<CR>
 nnoremap <silent> <C-w>p :Kwbd<CR>
 
-map <C-k><C-b> :NERDTreeToggle<CR>
-map <C-k><C-h> :NERDTreeFocus<CR>
-map <C-k><C-f> :NERDTreeFind<CR>
-let g:NERDTreeWinSize=50
-let g:NERDTreeQuitOnOpen=1
-
-" enable line numbers
-let NERDTreeShowLineNumbers=1
-" make sure relative line numbers are used
-autocmd FileType nerdtree setlocal relativenumber
+" NERDTree config removed — replaced by nvim-tree.lua (see init.lua)
 
 map <C-x><C-x> <esc>:qa<cr>
-map <C-x><C-x> :qa<cr>
+map <C-x><C-x> :qa<cr> 
 
 set laststatus=2
 

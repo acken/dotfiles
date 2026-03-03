@@ -211,7 +211,45 @@ require('lazy').setup({
 
   -- Keep your existing pathogen plugins working in neovim
   { 'tpope/vim-fugitive' },
-  { 'preservim/nerdtree' },
+  {
+    'nvim-tree/nvim-tree.lua',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    config = function()
+      local function on_attach(bufnr)
+        local api = require('nvim-tree.api')
+        api.config.mappings.default_on_attach(bufnr)
+        local opts = { buffer = bufnr, noremap = true, silent = true }
+        vim.keymap.set('n', 's', api.node.open.vertical, opts)
+        vim.keymap.set('n', 'i', api.node.open.horizontal, opts)
+      end
+      require('nvim-tree').setup({
+        on_attach = on_attach,
+        view = {
+          width = 50,
+          number = true,
+          relativenumber = true,
+        },
+        actions = {
+          open_file = {
+            quit_on_open = true,
+          },
+        },
+        git = {
+          enable = true,
+          ignore = false,
+        },
+        renderer = {
+          highlight_git = "name",
+          icons = {
+            git_placement = "after",
+          },
+        },
+      })
+      vim.keymap.set('n', '<C-k><C-b>', '<cmd>NvimTreeToggle<cr>')
+      vim.keymap.set('n', '<C-k><C-h>', '<cmd>NvimTreeFocus<cr>')
+      vim.keymap.set('n', '<C-k><C-f>', '<cmd>NvimTreeFindFileToggle<cr>')
+    end,
+  },
   { 'Raimondi/delimitMate' },
   -- { 'easymotion/vim-easymotion' },
   { 'mg979/vim-visual-multi' },  -- modern replacement for vim-multiple-cursors
