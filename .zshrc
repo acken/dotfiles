@@ -2,7 +2,7 @@
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/home/ack/.oh-my-zsh"
+export ZSH="$HOME/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -141,7 +141,7 @@ zstyle ':completion:*' special-dirs true
 
 autoload bashcompinit
 bashcompinit
-source /etc/bash_completion.d/oi
+[[ -f /etc/bash_completion.d/oi ]] && source /etc/bash_completion.d/oi
 
 function mkcd() {
     mkdir -p "$1"
@@ -164,7 +164,7 @@ alias nexus-token='echo -n "Username: " && \
     -H "Content-Type: application/json" > /tmp/nexus-token.sh && \
     chmod +x /tmp/nexus-token.sh && /tmp/nexus-token.sh; rm -f /tmp/nexus-token.sh'
 
-eval `dircolors ~/.dircolors`
+[[ -f ~/.dircolors ]] && eval "$(dircolors ~/.dircolors)" || eval "$(dircolors)"
 
 # zsh parameter completion for the dotnet CLI
 _dotnet_zsh_complete()
@@ -179,15 +179,15 @@ compctl -K _dotnet_zsh_complete dotnet
 
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
-export SDKMAN_DIR="/home/ack/.sdkman"
-[[ -s "/home/ack/.sdkman/bin/sdkman-init.sh" ]] && source "/home/ack/.sdkman/bin/sdkman-init.sh"
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
 fpath=($HOME/.zsh-completions $fpath)
 autoload -U compinit
 compinit
 
 
 # pnpm
-export PNPM_HOME="/home/ack/.local/share/pnpm"
+export PNPM_HOME="$HOME/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 # pnpm end
 #
@@ -195,3 +195,17 @@ export PATH="$PNPM_HOME:$PATH"
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# Android SDK
+if [[ -d "$HOME/Android/Sdk" ]]; then
+  export ANDROID_HOME=$HOME/Android/Sdk
+  export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+  export PATH=$PATH:$ANDROID_HOME/emulator
+  export PATH=$PATH:$ANDROID_HOME/platform-tools
+fi
+
+# .NET SDK
+if [[ -d "$HOME/.dotnet" ]]; then
+  export DOTNET_ROOT=$HOME/.dotnet
+  export PATH=$PATH:$DOTNET_ROOT
+fi
