@@ -257,6 +257,14 @@ require('lazy').setup({
   { 'github/copilot.vim' },
 })
 
+-- Norwegian keyboard: AltGr+ø → { and AltGr+æ → } (AltGr produces ö/ä)
+vim.keymap.set('i', 'ö', '{')
+vim.keymap.set('i', 'ä', '}')
+vim.keymap.set('n', 'ö', '{')
+vim.keymap.set('n', 'ä', '}')
+vim.keymap.set('v', 'ö', '{')
+vim.keymap.set('v', 'ä', '}')
+
 -- Disable line wrapping
 vim.opt.wrap = false
 
