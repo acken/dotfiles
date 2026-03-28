@@ -136,6 +136,7 @@ stty -ixon
 
 # Use vim key bindings in terminal
 bindkey -v
+bindkey '^R' history-incremental-search-backward
 
 zstyle ':completion:*' special-dirs true
 
