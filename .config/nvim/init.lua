@@ -27,7 +27,7 @@ require('lazy').setup({
     build = ':TSUpdate',
     config = function()
       require('nvim-treesitter.configs').setup({
-        ensure_installed = { 'c_sharp', 'lua', 'vim', 'vimdoc', 'json', 'yaml', 'xml', 'bash', 'sql' },
+        ensure_installed = { 'c_sharp', 'typescript', 'tsx', 'javascript', 'lua', 'vim', 'vimdoc', 'json', 'yaml', 'xml', 'bash', 'sql' },
         highlight = { enable = true },
         indent = { enable = true },
       })
@@ -37,11 +37,14 @@ require('lazy').setup({
   -- LSP
   {
     'neovim/nvim-lspconfig',
-    tag = 'v0.1.9',
+    tag = 'v2.3.0',
     config = function()
       local lspconfig = require('lspconfig')
       -- C# language server (install with: dotnet tool install --global csharp-ls)
       lspconfig.csharp_ls.setup{}
+
+      -- TypeScript/JavaScript language server (install with: npm i -g typescript-language-server typescript)
+      lspconfig.ts_ls.setup{}
 
       -- Keymaps for LSP (only active when LSP attaches)
       vim.api.nvim_create_autocmd('LspAttach', {

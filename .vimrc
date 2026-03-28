@@ -25,9 +25,11 @@ filetype plugin on
 if !exists("syntax_on")
     syntax on
 endif
-" Remove menubar
-set guioptions-=m
-set guioptions-=T
+if !has('nvim')
+  " Remove menubar
+  set guioptions-=m
+  set guioptions-=T
+endif
 set guicursor+=a:blinkon0
 set tabstop=4
 set softtabstop=4
@@ -39,7 +41,9 @@ set number
 set relativenumber
 " Disable irritating sound
 set vb
-set pastetoggle=<F10>
+if !has('nvim')
+  set pastetoggle=<F10>
+endif
 
 set mouse=a
 "if &term =~ '^screen'
@@ -83,10 +87,12 @@ map vaop o<esc>Vp
 map vaoo o<C-v><esc>
 map vaip op
 
-" Make vim handle windowing stuff
-set guioptions-=a
-set guifont=Monospace\ 9
-set guitablabel=\[%N\]\ %t\ %M 
+if !has('nvim')
+  " Make vim handle windowing stuff
+  set guioptions-=a
+  set guifont=Monospace\ 9
+  set guitablabel=\[%N\]\ %t\ %M
+endif
 
 " Make word wrapping and selection work more sane
 "behave mswin
