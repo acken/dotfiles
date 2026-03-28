@@ -1,2 +1,3 @@
 PeerColabCodegen-linux-x64
 bin/
+.vim/autoload/plug.vim

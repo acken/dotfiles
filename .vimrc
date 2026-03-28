@@ -2,6 +2,7 @@
 if !has('nvim')
   execute pathogen#infect()
   call plug#begin('~/.vim/plugged')
+  Plug 'vim-syntastic/syntastic'
   call plug#end()
 endif
 
