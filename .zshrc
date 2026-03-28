@@ -114,6 +114,8 @@ KEYMAPPROGRAM=$(which setxkbmap 2>/dev/null)
 if [[ -n "$DISPLAY" && -z "$WAYLAND_DISPLAY" && -n "$KEYMAPPROGRAM" ]]; then
     setxkbmap -option caps:escape
     xmodmap ~/.Xmodmap
+    # Remap AltGr+ø/æ to ö/ä to match MD600 keyboard legends
+    ~/src/dotfiles/fix-xkb-altgr.sh
 fi
 
 # export MANPATH="/usr/local/man:$MANPATH"
