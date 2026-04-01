@@ -212,3 +212,9 @@ if [[ -d "$HOME/.dotnet" ]]; then
   export DOTNET_ROOT=$HOME/.dotnet
   export PATH=$PATH:$DOTNET_ROOT
 fi
+
+# opencode
+export PATH=/home/ack/.opencode/bin:$PATH
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
