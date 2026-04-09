@@ -207,11 +207,9 @@ if [[ -d "$HOME/Android/Sdk" ]]; then
   export PATH=$PATH:$ANDROID_HOME/platform-tools
 fi
 
-# .NET SDK
-if [[ -d "$HOME/.dotnet" ]]; then
-  export DOTNET_ROOT=$HOME/.dotnet
-  export PATH=$PATH:$DOTNET_ROOT
-fi
+# .NET SDK — runtime is system-installed, tools are in ~/.dotnet/tools
+export DOTNET_ROOT=/usr/lib/dotnet
+export PATH=$PATH:$HOME/.dotnet/tools
 
 # opencode
 export PATH=/home/ack/.opencode/bin:$PATH

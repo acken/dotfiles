@@ -1,5 +1,6 @@
--- Ensure dotnet tools are in PATH
+-- Ensure dotnet tools are in PATH and runtime is findable
 vim.env.PATH = vim.env.HOME .. '/.dotnet/tools:' .. vim.env.PATH
+vim.env.DOTNET_ROOT = '/usr/lib/dotnet'
 
 -- Source existing vimrc (keymaps, settings, etc.)
 vim.cmd('source ~/.vimrc')
