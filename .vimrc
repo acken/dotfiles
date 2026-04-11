@@ -39,6 +39,7 @@ set autoindent
 set smartindent
 set number
 set relativenumber
+set linebreak
 " Disable irritating sound
 set vb
 if !has('nvim')
@@ -62,6 +63,13 @@ endif
 " highlight NonText ctermbg=none
 
 set scrolloff=10
+
+" Fix End/Home keys that arrive as <Select>/<Find> under xterm-256color
+" (vim's builtin termcap maps \e[4~ to <Select> and \e[1~ to <Find>)
+map  <Select> <End>
+map! <Select> <End>
+map  <Find>   <Home>
+map! <Find>   <Home>
 
 " Search and map handling
 nnoremap <C-q> :noh<return><esc>

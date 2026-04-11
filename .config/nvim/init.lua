@@ -41,8 +41,7 @@ require('lazy').setup({
     tag = 'v2.3.0',
     config = function()
       local lspconfig = require('lspconfig')
-      -- C# language server (install with: dotnet tool install --global csharp-ls)
-      lspconfig.csharp_ls.setup{}
+      -- C# is handled by seblj/roslyn.nvim (Microsoft's official Roslyn LSP)
 
       -- TypeScript/JavaScript language server (install with: npm i -g typescript-language-server typescript)
       lspconfig.ts_ls.setup{}
@@ -66,6 +65,35 @@ require('lazy').setup({
           end
         end,
       })
+    end,
+  },
+
+  -- Mason: LSP/tool installer (used to install roslyn for C#)
+  {
+    'williamboman/mason.nvim',
+    config = function()
+      require('mason').setup({
+        registries = {
+          'github:mason-org/mason-registry',
+          'github:Crashdummyy/mason-registry',
+        },
+      })
+    end,
+  },
+
+  -- C# LSP via Microsoft's Roslyn Language Server
+  -- Auto-installs the `roslyn` mason package on first .cs file open.
+  {
+    'seblj/roslyn.nvim',
+    ft = 'cs',
+    dependencies = { 'williamboman/mason.nvim' },
+    config = function()
+      local mr = require('mason-registry')
+      if not mr.is_installed('roslyn') then
+        vim.notify('Installing roslyn LSP via mason...', vim.log.levels.INFO)
+        vim.cmd('MasonInstall roslyn')
+      end
+      require('roslyn').setup({})
     end,
   },
 
@@ -240,7 +268,7 @@ require('lazy').setup({
         },
         actions = {
           open_file = {
-            quit_on_open = true,
+            quit_on_open = false,
           },
         },
         git = {

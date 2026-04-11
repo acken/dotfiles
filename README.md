@@ -16,7 +16,7 @@ Configuration files and scripts for my development environment.
 | `.Xmodmap`               | X keyboard mapping (Insert key fix)                      |
 | `.emacs`                 | Emacs config with evil mode (legacy)                     |
 | `.vim/`                  | Pathogen plugins and color schemes (used by plain vim)   |
-| `bin/`                   | Helper scripts (wdtmux, oivim, tmux tools, OpenIDE)     |
+| `bin/`                   | Helper scripts (wdtmux, oivim, tmux tools, OpenIDE, setup-csharp-lsp) |
 
 ## Neovim
 
@@ -27,7 +27,9 @@ Primary editor. Sources `.vimrc` for base settings, then layers on modern plugin
 | Plugin                   | Purpose                                    |
 |:-------------------------|:-------------------------------------------|
 | nvim-treesitter          | Syntax highlighting and indentation        |
-| nvim-lspconfig           | LSP support (csharp_ls)                    |
+| nvim-lspconfig           | LSP support (ts_ls)                        |
+| mason.nvim               | LSP/tool installer (with Crashdummyy registry for roslyn) |
+| roslyn.nvim              | C# LSP via Microsoft's Roslyn Language Server |
 | nvim-cmp                 | Autocompletion (LSP, buffer, path, snippets) |
 | telescope.nvim           | Fuzzy finder for files, grep, and buffers  |
 | gruvbox.nvim             | Color scheme with transparent mode         |
