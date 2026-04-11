@@ -258,6 +258,12 @@ require('lazy').setup({
         local opts = { buffer = bufnr, noremap = true, silent = true }
         vim.keymap.set('n', 's', api.node.open.vertical, opts)
         vim.keymap.set('n', 'i', api.node.open.horizontal, opts)
+        vim.keymap.set('n', '<CR>', api.node.open.no_window_picker, opts)
+        vim.keymap.set('n', 'o', api.node.open.no_window_picker, opts)
+        -- Default <C-x> is horizontal-split-open, which we've rebound to `i`.
+        -- Unmap it so the global <C-x><C-x> → :qa mapping (from .vimrc) fires
+        -- inside the tree instead of being shadowed by the buffer-local <C-x>.
+        pcall(vim.keymap.del, 'n', '<C-x>', { buffer = bufnr })
       end
       require('nvim-tree').setup({
         on_attach = on_attach,
@@ -284,7 +290,7 @@ require('lazy').setup({
       })
       vim.keymap.set('n', '<C-k><C-b>', '<cmd>NvimTreeToggle<cr>')
       vim.keymap.set('n', '<C-k><C-h>', '<cmd>NvimTreeFocus<cr>')
-      vim.keymap.set('n', '<C-k><C-f>', '<cmd>NvimTreeFindFileToggle<cr>')
+      vim.keymap.set('n', '<C-k><C-f>', '<cmd>NvimTreeFindFile<cr>')
     end,
   },
   { 'Raimondi/delimitMate' },
