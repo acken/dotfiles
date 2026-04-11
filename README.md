@@ -38,7 +38,8 @@ Primary editor. Sources `.vimrc` for base settings, then layers on modern plugin
 | indent-blankline.nvim    | Indent guides                              |
 | vim-dadbod-ui            | Database UI and SQL completion             |
 | render-markdown.nvim     | Inline markdown rendering                  |
-| copilot.vim              | GitHub Copilot                             |
+| copilot.vim              | GitHub Copilot (inline ghost-text completion) |
+| claudecode.nvim          | Claude Code IDE integration (reuses `claude` CLI auth, diff review) |
 | nerdtree                 | File explorer                              |
 | vim-fugitive             | Git commands                               |
 | vim-visual-multi         | Multiple cursors                           |
@@ -70,6 +71,24 @@ Primary editor. Sources `.vimrc` for base settings, then layers on modern plugin
 | **Database (vim-dadbod)**                 |                                                 |
 | ,db                                       | Toggle DB UI                                    |
 | F5 (in SQL buffer)                        | Execute query                                   |
+|                                           |                                                 |
+| **Copilot (insert mode)**                 |                                                 |
+| Ctrl+j                                    | Accept suggestion                               |
+| Alt+n                                     | Next suggestion                                 |
+| Alt+p                                     | Previous suggestion                             |
+| Alt+m                                     | Request a suggestion on demand                  |
+| Alt+d                                     | Dismiss current suggestion                      |
+|                                           |                                                 |
+| **Claude Code (claudecode.nvim)**         |                                                 |
+| ,ac                                       | Toggle Claude window                            |
+| ,af                                       | Focus Claude window                             |
+| ,ar                                       | Resume a previous Claude session                |
+| ,aC                                       | Continue most recent Claude session             |
+| ,ab                                       | Add current buffer to Claude's context          |
+| ,as (visual mode)                         | Send selection to Claude                        |
+| ,as (in nvim-tree)                        | Add file under cursor to Claude                 |
+| ,aa                                       | Accept proposed diff                            |
+| ,ad                                       | Deny proposed diff                              |
 
 ## Vim / Shared Keybindings
 

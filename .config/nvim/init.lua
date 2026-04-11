@@ -297,7 +297,56 @@ require('lazy').setup({
   -- { 'easymotion/vim-easymotion' },
   { 'mg979/vim-visual-multi' },  -- modern replacement for vim-multiple-cursors
   { 'ellisonleao/gruvbox.nvim' },
-  { 'github/copilot.vim' },
+  {
+    'github/copilot.vim',
+    init = function()
+      -- nvim-cmp already owns <Tab> (see nvim-cmp config above), so disable
+      -- Copilot's default <Tab> accept mapping and bind accept to <C-j> instead.
+      vim.g.copilot_no_tab_map = true
+      vim.g.copilot_assume_mapped = true
+    end,
+    config = function()
+      -- Accept full suggestion
+      vim.keymap.set('i', '<C-j>', 'copilot#Accept("\\<CR>")', {
+        expr = true,
+        replace_keycodes = false,
+        silent = true,
+      })
+      -- Norwegian-layout-friendly cycle/suggest keys
+      -- (default <M-]> / <M-[> are unreachable because [] are AltGr combos)
+      vim.keymap.set('i', '<M-n>', '<Plug>(copilot-next)',     { silent = true })
+      vim.keymap.set('i', '<M-p>', '<Plug>(copilot-previous)', { silent = true })
+      vim.keymap.set('i', '<M-m>', '<Plug>(copilot-suggest)',  { silent = true })
+      vim.keymap.set('i', '<M-d>', '<Plug>(copilot-dismiss)',  { silent = true })
+    end,
+  },
+
+  -- Claude Code IDE integration. Wraps the sanctioned `claude` CLI and bridges
+  -- it to nvim via WebSocket so you can push selections/buffers to Claude and
+  -- review proposed edits as diffs inside your real buffers. This is the only
+  -- path that (a) uses your Claude Pro/Max subscription and (b) stays within
+  -- Anthropic's ToS for third-party tools — Avante/CodeCompanion with the Max
+  -- OAuth token is explicitly forbidden as of the Apr 2026 ToS update.
+  {
+    'coder/claudecode.nvim',
+    cmd = {
+      'ClaudeCode', 'ClaudeCodeFocus', 'ClaudeCodeSend',
+      'ClaudeCodeAdd', 'ClaudeCodeTreeAdd',
+      'ClaudeCodeDiffAccept', 'ClaudeCodeDiffDeny',
+    },
+    config = true,
+    keys = {
+      { '<leader>ac', '<cmd>ClaudeCode<cr>',            desc = 'Claude: toggle' },
+      { '<leader>af', '<cmd>ClaudeCodeFocus<cr>',       desc = 'Claude: focus' },
+      { '<leader>ar', '<cmd>ClaudeCode --resume<cr>',   desc = 'Claude: resume session' },
+      { '<leader>aC', '<cmd>ClaudeCode --continue<cr>', desc = 'Claude: continue last session' },
+      { '<leader>ab', '<cmd>ClaudeCodeAdd %<cr>',       desc = 'Claude: add current buffer' },
+      { '<leader>as', '<cmd>ClaudeCodeSend<cr>', mode = 'v', desc = 'Claude: send selection' },
+      { '<leader>as', '<cmd>ClaudeCodeTreeAdd<cr>', desc = 'Claude: add file from tree', ft = { 'NvimTree' } },
+      { '<leader>aa', '<cmd>ClaudeCodeDiffAccept<cr>',  desc = 'Claude: accept diff' },
+      { '<leader>ad', '<cmd>ClaudeCodeDiffDeny<cr>',    desc = 'Claude: deny diff' },
+    },
+  },
 })
 
 -- Norwegian keyboard: AltGr+ø → { and AltGr+æ → } (AltGr produces ö/ä)
