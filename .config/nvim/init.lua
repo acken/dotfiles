@@ -291,6 +291,18 @@ require('lazy').setup({
       vim.keymap.set('n', '<C-k><C-b>', '<cmd>NvimTreeToggle<cr>')
       vim.keymap.set('n', '<C-k><C-h>', '<cmd>NvimTreeFocus<cr>')
       vim.keymap.set('n', '<C-k><C-f>', '<cmd>NvimTreeFindFile<cr>')
+
+      vim.api.nvim_create_autocmd('VimEnter', {
+        callback = function(data)
+          local real_file = vim.fn.filereadable(data.file) == 1
+          local no_name = data.file == '' and vim.bo[data.buf].buftype == ''
+          local directory = vim.fn.isdirectory(data.file) == 1
+          if not real_file and not no_name and not directory then return end
+          if directory then vim.cmd.cd(data.file) end
+          require('nvim-tree.api').tree.open()
+          if not directory then vim.cmd('wincmd p') end
+        end,
+      })
     end,
   },
   { 'Raimondi/delimitMate' },
