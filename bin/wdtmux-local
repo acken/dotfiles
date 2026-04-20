@@ -1,0 +1,81 @@
+#!/bin/bash
+# wdtmux-local — session boot hook for wdtmux.
+# Reads $PWD/.wdtmux-boot and creates a tmux session with the declared
+# window/pane layout. Exits 1 if no boot file (so wdtmux falls through
+# to its default behaviour).
+#
+# Usage: wdtmux-local <session-name> [<tmux-binary>]
+#
+# Boot file format (one line per window, # for comments, blanks ignored):
+#     name|subdir|layout|cmds
+#
+#   name   — window name
+#   subdir — path under $PWD used as the window's cwd
+#   layout — single | double | triple
+#   cmds   — ';'-separated commands sent to each pane in creation order.
+#            Empty entries leave the default shell.
+#
+# Pane creation order per layout:
+#     single:      only
+#     double:      left ; right
+#     triple:      topleft ; right ; bottomleft   (left column split 73/27)
+#     triple-even: topleft ; right ; bottomleft   (left column split 50/50)
+
+SESSION="$1"
+TMUX="${2:-/usr/bin/tmux}"
+BOOT="$PWD/.wdtmux-boot"
+
+[ -f "$BOOT" ] || exit 1
+
+created=0
+cleanup() {
+    [ "$created" = 1 ] && "$TMUX" kill-session -t "$SESSION" 2>/dev/null
+    exit 1
+}
+trap cleanup ERR
+set -e
+
+first=1
+while IFS='|' read -r name subdir layout cmds; do
+    case "$name" in ''|\#*) continue ;; esac
+    if [ -n "$subdir" ]; then cwd="$PWD/$subdir"; else cwd="$PWD"; fi
+    target="${SESSION}:${name}"
+
+    if [ "$first" = 1 ]; then
+        "$TMUX" new-session -d -s "$SESSION" -n "$name" -c "$cwd"
+        created=1
+        first=0
+    else
+        "$TMUX" new-window -t "$SESSION" -n "$name" -c "$cwd"
+    fi
+
+    case "$layout" in
+        single) ;;
+        double)
+            "$TMUX" split-window -h -l 50% -t "$target" -c "$cwd"
+            ;;
+        triple)
+            "$TMUX" split-window -h -l 50% -t "$target" -c "$cwd"
+            "$TMUX" select-pane -t "${target}.0"
+            "$TMUX" split-window -v -l 27% -t "$target" -c "$cwd"
+            ;;
+        triple-even)
+            "$TMUX" split-window -h -l 50% -t "$target" -c "$cwd"
+            "$TMUX" select-pane -t "${target}.0"
+            "$TMUX" split-window -v -l 50% -t "$target" -c "$cwd"
+            ;;
+        *)
+            echo "wdtmux-local: unknown layout '$layout' for window '$name'" >&2
+            exit 1
+            ;;
+    esac
+
+    i=0
+    while IFS= read -r cmd; do
+        [ -n "$cmd" ] && "$TMUX" send-keys -t "${target}.${i}" "$cmd" Enter
+        i=$((i + 1))
+    done < <(printf '%s\n' "$cmds" | tr ';' '\n')
+done < "$BOOT"
+
+"$TMUX" select-window -t "${SESSION}:0"
+exit 0
