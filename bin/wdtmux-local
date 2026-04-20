@@ -46,7 +46,7 @@ while IFS='|' read -r name subdir layout cmds; do
         created=1
         first=0
     else
-        "$TMUX" new-window -t "$SESSION" -n "$name" -c "$cwd"
+        "$TMUX" new-window -t "${SESSION}:" -n "$name" -c "$cwd"
     fi
 
     case "$layout" in
@@ -78,4 +78,20 @@ while IFS='|' read -r name subdir layout cmds; do
 done < "$BOOT"
 
 "$TMUX" select-window -t "${SESSION}:0"
+
+# Optional: boot additional sessions listed in $PWD/.wdtmux-initial-sessions.
+# One path per line (# for comments, ~ expanded). Each path is treated as
+# its own wdtmux root: session name = basename, boot file = <path>/.wdtmux-boot.
+# Existing sessions are left untouched.
+INITIAL="$PWD/.wdtmux-initial-sessions"
+if [ -f "$INITIAL" ]; then
+    while IFS= read -r path; do
+        case "$path" in ''|\#*) continue ;; esac
+        path="${path/#\~/$HOME}"
+        sub=$(basename "$path")
+        "$TMUX" has-session -t "$sub" 2>/dev/null && continue
+        ( cd "$path" && wdtmux-local "$sub" "$TMUX" ) || true
+    done < "$INITIAL"
+fi
+
 exit 0
