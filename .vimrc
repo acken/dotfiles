@@ -40,6 +40,11 @@ set smartindent
 set number
 set relativenumber
 set linebreak
+" Move by display lines on wrapped text (swap j/k with gj/gk)
+nnoremap j gj
+nnoremap k gk
+nnoremap gj j
+nnoremap gk k
 " Disable irritating sound
 set vb
 if !has('nvim')
