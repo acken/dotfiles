@@ -124,10 +124,6 @@ map <C-w><Right> :vertical resize +4<CR>
 
 imap <C-v> <F10><C-r>"<F10>
 
-"xclip stuff
-vmap "+y :!xclip -f -selection clipboard<cr>u
-map "+p :exec "set paste" \| exec "r!xclip -o -selection clipboard" \| exec "set nopaste"<cr>
-
 " Tab Handling and navigation
 nnoremap <silent> <C-W>t :tabnew<CR>
 nnoremap <silent> <C-W>e :tabclose<CR>
