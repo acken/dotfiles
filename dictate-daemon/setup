@@ -1,0 +1,87 @@
+#!/bin/bash
+# Set up the Whisper dictation daemon.
+#
+# - apt installs xdotool + python3-venv
+# - creates a venv at ~/.local/share/dictate/venv
+# - installs faster-whisper into it
+# - symlinks ./toggle into ~/bin as `dictate-toggle` (for hotkey use)
+# - writes ~/.config/systemd/user/dictate.service
+# - enables + starts the user service
+#
+# Idempotent: safe to re-run (will reinstall pip deps and reload systemd).
+# After this, bind `dictate-toggle` to a global hotkey in your DE.
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+VENV="$HOME/.local/share/dictate/venv"
+SVC="$HOME/.config/systemd/user/dictate.service"
+TOGGLE_LINK="$HOME/bin/dictate-toggle"
+STREAM_LINK="$HOME/bin/dictate-stream-toggle"
+
+echo "[1/6] installing system packages (xdotool, python3-venv)..."
+sudo apt install -y xdotool python3-venv
+
+echo "[2/6] creating venv at $VENV..."
+mkdir -p "$(dirname "$VENV")"
+[ -d "$VENV" ] || python3 -m venv "$VENV"
+"$VENV/bin/pip" install --quiet --upgrade pip
+"$VENV/bin/pip" install --quiet faster-whisper
+# CTranslate2 (faster-whisper's backend) needs cuBLAS + cuDNN at runtime but
+# doesn't bundle them. Install via pip — its wheel's rpath finds them.
+"$VENV/bin/pip" install --quiet 'nvidia-cublas-cu12' 'nvidia-cudnn-cu12==9.*'
+
+echo "[3/6] symlinking toggles into ~/bin..."
+mkdir -p "$(dirname "$TOGGLE_LINK")"
+ln -sfn "$HERE/toggle" "$TOGGLE_LINK"
+ln -sfn "$HERE/stream-toggle" "$STREAM_LINK"
+
+echo "[4/6] writing systemd unit to $SVC..."
+mkdir -p "$(dirname "$SVC")"
+# Locate cuBLAS/cuDNN dirs inside the venv — ctranslate2 dlopen's them at runtime.
+CUBLAS_DIR="$(dirname "$(find "$VENV" -name libcublas.so.12 | head -1)")"
+CUDNN_DIR="$(dirname "$(find "$VENV" -name libcudnn.so.9 | head -1)")"
+cat > "$SVC" <<EOF
+[Unit]
+Description=Whisper dictation daemon
+
+[Service]
+Environment=LD_LIBRARY_PATH=$CUBLAS_DIR:$CUDNN_DIR
+ExecStart=$VENV/bin/python3 $HERE/daemon
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+
+echo "[5/6] reloading + (re)starting service..."
+systemctl --user daemon-reload
+systemctl --user enable dictate.service >/dev/null
+systemctl --user restart dictate.service
+
+echo "[6/6] verifying service is active..."
+sleep 2
+if systemctl --user is-active --quiet dictate.service; then
+    echo "    OK — service is active. The model loads on first start (~1-3s)."
+else
+    echo "    FAIL — service did not start. Check logs:"
+    echo "      journalctl --user -u dictate -n 50"
+    exit 1
+fi
+
+cat <<'EOF'
+
+Done. Next:
+  1. Bind `dictate-toggle` to a global hotkey.
+     KDE: System Settings -> Shortcuts -> Custom Shortcuts -> Add -> Command/URL
+          Trigger: e.g. Meta+Space     Action: dictate-toggle
+  2. Press the hotkey to start recording, press again to stop and type.
+
+Useful commands:
+  journalctl --user -u dictate -f      # tail logs (watch model load, transcripts)
+  systemctl --user restart dictate     # reload after editing daemon
+  systemctl --user stop dictate        # stop daemon
+
+To change model/device, edit the constants at the top of ./daemon
+and `systemctl --user restart dictate`.
+EOF

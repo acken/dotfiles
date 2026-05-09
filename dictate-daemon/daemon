@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""Whisper dictation daemon. Two modes via FIFO commands:
+
+  toggle         batch — record until next toggle, then transcribe + type
+  stream-toggle  stream — transcribe every ~1.5s, type confirmed words live
+                          (LocalAgreement-2: a word is confirmed once it
+                          appears in two consecutive transcriptions)
+
+Run via the systemd unit installed by ./setup, which invokes this with
+the dedicated venv's python (so faster-whisper is importable)."""
+
+import os
+import subprocess
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+import numpy as np
+from faster_whisper import WhisperModel
+
+FIFO = Path("/tmp/dictate.fifo")
+MODEL = "small.en"
+DEVICE = "cuda"
+COMPUTE = "float16"
+SAMPLE_RATE = 16000
+
+STREAM_STEP_SEC = 1.5      # transcribe interval while streaming
+STREAM_WINDOW_SEC = 30     # max audio buffer before forced commit + reset
+
+
+def _kde_block_shortcuts(block):
+    subprocess.run(
+        ["qdbus", "org.kde.kglobalaccel", "/kglobalaccel",
+         "org.kde.KGlobalAccel.blockGlobalShortcuts",
+         "true" if block else "false"],
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def type_text(text):
+    if not text:
+        return
+    # Two layers of protection against typed letters firing KDE shortcuts:
+    #   1. --clearmodifiers releases Meta/Ctrl/Shift the user is still
+    #      holding (e.g. Meta+H toggle release racing with the first 'l'
+    #      typed → Meta+L = KDE lock screen).
+    #   2. blockGlobalShortcuts stops KGlobalAccel from interpreting the
+    #      synthesised XTest keypresses themselves — without it, plain
+    #      letters or function keys bound globally still fire shortcuts
+    #      even with no modifier held.
+    _kde_block_shortcuts(True)
+    try:
+        subprocess.run(["xdotool", "type", "--clearmodifiers", "--delay", "1", "--", text])
+    finally:
+        _kde_block_shortcuts(False)
+
+
+def common_word_prefix(a, b):
+    wa, wb = a.split(), b.split()
+    n = 0
+    while n < len(wa) and n < len(wb) and wa[n] == wb[n]:
+        n += 1
+    return " ".join(wa[:n])
+
+
+class BatchSession:
+    def __init__(self, model):
+        self.model = model
+        fd, self.wav = tempfile.mkstemp(suffix=".wav", prefix="dictate-")
+        os.close(fd)
+        self.proc = subprocess.Popen(
+            ["arecord", "-q", "-f", "S16_LE", "-r", str(SAMPLE_RATE), "-c", "1", self.wav],
+            stderr=subprocess.DEVNULL,
+        )
+
+    def stop_and_emit(self):
+        self.proc.terminate()
+        self.proc.wait()
+        segments, _ = self.model.transcribe(self.wav, language="en", vad_filter=True)
+        text = "".join(s.text for s in segments).strip()
+        os.unlink(self.wav)
+        print(f"-> {text!r}", flush=True)
+        type_text(text)
+
+
+class StreamSession:
+    def __init__(self, model):
+        self.model = model
+        self.proc = subprocess.Popen(
+            ["arecord", "-q", "-f", "S16_LE", "-r", str(SAMPLE_RATE),
+             "-c", "1", "-t", "raw", "-"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0,
+        )
+        self.buffer = bytearray()
+        self.prev_text = ""    # last hypothesis (for LocalAgreement)
+        self.committed = ""    # text already typed this session
+        self.stop_evt = threading.Event()
+        self.thread = threading.Thread(target=self._loop, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.stop_evt.set()
+        self.proc.terminate()
+        self.proc.wait()
+        self.thread.join(timeout=10)
+        # final flush: treat current hypothesis as confirmed
+        text = self._transcribe()
+        self._commit(text, force=True)
+
+    def _loop(self):
+        chunk = SAMPLE_RATE * 2 // 10  # 100ms of S16LE
+        next_at = time.monotonic() + STREAM_STEP_SEC
+        while not self.stop_evt.is_set():
+            data = self.proc.stdout.read(chunk)
+            if not data:
+                break
+            self.buffer.extend(data)
+            if time.monotonic() < next_at:
+                continue
+            try:
+                text = self._transcribe()
+                self._commit(text)
+            except Exception as e:
+                print(f"stream error: {e}", flush=True)
+            next_at = time.monotonic() + STREAM_STEP_SEC
+            # Buffer too long: force-commit and reset (keeps re-transcribe fast)
+            if len(self.buffer) > SAMPLE_RATE * 2 * STREAM_WINDOW_SEC:
+                self._commit(self.prev_text, force=True)
+                self.buffer.clear()
+                self.prev_text = ""
+                self.committed = ""
+
+    def _transcribe(self):
+        if len(self.buffer) < SAMPLE_RATE * 2 * 0.3:  # <300ms — skip
+            return ""
+        audio = np.frombuffer(bytes(self.buffer), dtype=np.int16).astype(np.float32) / 32768.0
+        segments, _ = self.model.transcribe(
+            audio, language="en", vad_filter=True,
+            beam_size=1, condition_on_previous_text=False,
+        )
+        return "".join(s.text for s in segments).strip()
+
+    def _commit(self, text, force=False):
+        if force:
+            # final flush: append all words past what's already typed, even if
+            # Whisper has slightly rewritten the prefix (capitalization, punct).
+            committed_words = self.committed.split()
+            text_words = text.split()
+            if len(text_words) > len(committed_words):
+                new_words = text_words[len(committed_words):]
+                new = " ".join(new_words)
+                if self.committed:
+                    new = " " + new
+                type_text(new)
+                print(f">> [final] {new!r}", flush=True)
+                self.committed = " ".join(committed_words + new_words)
+            return
+
+        confirmed = common_word_prefix(self.prev_text, text)
+        if confirmed.startswith(self.committed):
+            new = confirmed[len(self.committed):]
+            if new:
+                if self.committed and not new.startswith(" "):
+                    new = " " + new
+                type_text(new)
+                print(f">> {new!r}", flush=True)
+                self.committed = confirmed
+        self.prev_text = text
+
+
+class Dictator:
+    def __init__(self):
+        print(f"loading {MODEL} on {DEVICE}...", flush=True)
+        self.model = WhisperModel(MODEL, device=DEVICE, compute_type=COMPUTE)
+        self.batch = None
+        self.stream = None
+        # Recover from a prior daemon crash that left shortcuts blocked.
+        _kde_block_shortcuts(False)
+        print("ready.", flush=True)
+
+    def toggle_batch(self):
+        if self._stop_active():
+            return
+        self.batch = BatchSession(self.model)
+        print("recording (batch)...", flush=True)
+
+    def toggle_stream(self):
+        if self._stop_active():
+            return
+        self.stream = StreamSession(self.model)
+        print("streaming...", flush=True)
+
+    def _stop_active(self):
+        """If a session is running, stop it and return True."""
+        if self.batch is not None:
+            self.batch.stop_and_emit()
+            self.batch = None
+            return True
+        if self.stream is not None:
+            self.stream.stop()
+            self.stream = None
+            print("stream stopped.", flush=True)
+            return True
+        return False
+
+
+def main():
+    if FIFO.exists():
+        FIFO.unlink()
+    os.mkfifo(FIFO, 0o600)
+    d = Dictator()
+    while True:
+        with open(FIFO) as f:
+            cmd = f.read().strip()
+        try:
+            if cmd == "toggle":
+                d.toggle_batch()
+            elif cmd == "stream-toggle":
+                d.toggle_stream()
+            else:
+                print(f"unknown cmd: {cmd!r}", flush=True)
+        except Exception as e:
+            print(f"error: {e}", flush=True)
+
+
+if __name__ == "__main__":
+    main()

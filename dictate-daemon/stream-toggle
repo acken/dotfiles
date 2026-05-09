@@ -1,0 +1,4 @@
+#!/bin/bash
+# Toggle streaming dictation: first call starts streaming, second call stops.
+# Words are typed as Whisper confirms them (~1.5-3s latency per word).
+echo stream-toggle > /tmp/dictate.fifo

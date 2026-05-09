@@ -1,0 +1,315 @@
+Initial development log — dictate-daemon
+Session date: 2026-05-09
+Reconstructed from memory by Claude (Opus 4.7); not a verbatim transcript.
+
+Goal: hands-free dictation into vim (and any focused window) on Kubuntu 24.04
+with KDE Plasma 5, X11 session, RTX 5080, Poly Studio P15 mic.
+
+
+# 1. Picking the approach
+
+User started with a question: "what voice-to-text options do I have on Linux,
+ideally I'd like to dictate into vim?"
+
+I surveyed the landscape:
+  - nerd-dictation (VOSK, offline, low-latency, types via xdotool/ydotool/wtype)
+  - Whisper-based hotkey scripts (whisper.cpp / faster-whisper, push-to-talk)
+  - Speech Note (Flatpak, GUI, multiple engines)
+  - Talon Voice (powerful, voice-coding, steeper curve)
+  - Numen (voice mouse/keyboard control)
+
+Recommended faster-whisper + push-to-talk + xdotool:
+  - Best accuracy, especially for technical vocabulary
+  - User has RTX 5080 → near-instant inference even on large-v3
+  - Simple toggle UX
+  - X11 session ($XDG_SESSION_TYPE=x11) → xdotool works without ydotool/uinput
+    permissions hassle
+
+User said yes, sketch one.
+
+
+# 2. Architecture decision: daemon, not one-shot
+
+I sketched a daemon-based design rather than per-invocation:
+
+  - Loading even small.en takes ~1s; large-v3 several seconds.
+  - Per-invocation = paying that latency every time → bad UX.
+  - Daemon holds the model in GPU memory; toggle is just a FIFO write.
+
+Components:
+  - dictate-daemon — Python long-running process, listens on /tmp/dictate.fifo
+  - dictate-toggle — trivial bash, writes "toggle" to the FIFO
+  - systemd user unit — keeps the daemon running across logins
+  - KDE custom shortcut → runs the toggle
+
+Recording via arecord (S16_LE, 16 kHz, mono) — Whisper's expected format.
+Typing via xdotool type into the focused window.
+
+Initial environment check:
+  - xdotool: missing → would need apt install
+  - faster-whisper: missing → would need pip install
+  - arecord: present
+  - python3: present
+  - GPU: visible via nvidia-smi (driver 595.58.03)
+  - ~/bin: symlink into ~/src/dotfiles/bin/
+
+
+# 3. Install script
+
+User asked for an install script. I created three files in ~/src/dotfiles/bin/
+(matching the existing setup-csharp-lsp pattern):
+
+  - dictate-daemon (Python, the long-running service)
+  - dictate-toggle (bash, the FIFO writer)
+  - setup-dictation (bash, idempotent installer)
+
+The installer:
+  - apt installs xdotool + python3-venv (sudo)
+  - creates a dedicated venv at ~/.local/share/dictate/venv
+    (sidesteps PEP 668 pip-restriction on Ubuntu 24.04)
+  - pip installs faster-whisper into the venv
+  - writes ~/.config/systemd/user/dictate.service inline (heredoc — single source
+    of truth, no fourth file to manage)
+  - daemon-reload + enable + start
+  - verifies "is-active"
+
+User then said: "let's create a dictate-daemon folder for it instead of straight
+in bin/."
+
+Reorganized:
+  ~/src/dotfiles/dictate-daemon/
+    daemon         (renamed from dictate-daemon)
+    toggle         (renamed from dictate-toggle)
+    setup          (renamed from setup-dictation)
+
+Setup script updated to symlink toggle into ~/bin/ as `dictate-toggle` so KDE
+can find it on PATH; systemd ExecStart points at the absolute path of daemon
+inside the dotfiles folder.
+
+
+# 4. Hotkey binding
+
+User ran ./setup themselves successfully. Asked me to bind Meta+H.
+
+KDE Plasma 5 stores custom shortcuts in ~/.config/khotkeysrc. The format is
+multi-section INI: a top-level [Data] with DataCount, then [Data_N] groups
+(ACTION_DATA_GROUP), and inside those [Data_N_M] entries (SIMPLE_ACTION_DATA)
+with Actions / Triggers sub-sections.
+
+Backed up khotkeysrc, added a Data_4 group ("User Shortcuts") with Data_4_1
+binding Meta+H to dictate-toggle, bumped [Data] DataCount from 3 to 4.
+
+Reloaded khotkeys via:
+  qdbus org.kde.kded5 /kded unloadModule khotkeys
+  qdbus org.kde.kded5 /kded loadModule khotkeys
+
+KDE then rewrote khotkeysrc, alphabetically reorganizing sections — my Data_4
+ended up around line 996 instead of immediately after Data_3, but the binding
+worked structurally.
+
+
+# 5. Bug 1: Meta+H opens a browser searching "dictate-toggle"
+
+khotkeys' CommandURL field, when given a bare token like "dictate-toggle",
+hands it to the URL handler which falls through to a browser web search rather
+than executing it. The binding was "working" (mic icon appeared) — wait, no,
+that was after the next fix. Initial state: opens Vivaldi searching for
+"dictate-toggle".
+
+khotkeys at session-start time has whatever PATH was inherited from login,
+which apparently doesn't include ~/bin (or it does but CommandURL prefers URL
+interpretation for bare names without a path).
+
+Fix: change CommandURL to absolute path:
+  CommandURL=/home/ack/src/dotfiles/dictate-daemon/toggle
+
+
+# 6. Bug 2: Mic icon appears, but nothing is typed
+
+Pressed Meta+H, KDE toolbar showed "PipeWire ALSA microphone" — capture was
+happening. But after stopping, nothing typed.
+
+User asked: is "PipeWire ALSA microphone" the wrong device? (Default source
+is the Poly Studio P15 — that's correct, it's their primary input.)
+
+User also asked: Vivaldi has the mic open, is that a problem? Answer: no, on
+PipeWire multiple readers can share a source.
+
+The real issue was in the daemon log:
+
+  error: Library libcublas.so.12 is not found or cannot be loaded
+
+CTranslate2 (faster-whisper's backend) needs cuBLAS at runtime but the wheel
+doesn't bundle it. The system had only the NVIDIA driver — no CUDA toolkit, no
+cuBLAS, no cuDNN.
+
+Fix attempt 1: pip install nvidia-cublas-cu12 nvidia-cudnn-cu12==9.* into the
+venv. I assumed CTranslate2's wheel rpath would find them. **Wrong.** The
+restart appeared to succeed (no error in immediate logs) but only because my
+test sent two toggles back-to-back with no audio — VAD short-circuited and the
+GPU code never ran. As soon as user spoke, cuBLAS error returned.
+
+Fix attempt 2: set LD_LIBRARY_PATH in the systemd unit:
+
+  Environment=LD_LIBRARY_PATH=<venv>/.../nvidia/cublas/lib:<venv>/.../nvidia/cudnn/lib
+
+This worked. Updated setup script to find these lib dirs dynamically and write
+them into the unit, so a fresh install does the right thing automatically.
+
+Lesson: if a "fix" only validates against an empty/silent test, it's not
+validated.
+
+
+# 7. Real-time vs batch
+
+User got transcription working but noticed it only types after stopping the
+recording, not in real time. Asked if that's expected.
+
+Yes, by design. Tradeoffs explained:
+  - Batch (current): Whisper sees the whole utterance → best punctuation,
+    capitalization, contractions; faster overall.
+  - Streaming: words appear as you speak; worse punctuation, occasional
+    mid-sentence rewrites; needs LocalAgreement-style hypothesis confirmation.
+
+User wanted both modes:
+  - Meta+H = batch (transcribe on stop)
+  - Meta+Shift+H = streaming (live-ish typing)
+
+Implemented streaming via:
+  - arecord -t raw - (S16LE to stdout pipe instead of WAV file)
+  - background thread reads ~100ms chunks, appends to a rolling bytearray
+  - every STREAM_STEP_SEC (1.5s) re-transcribe the whole buffer
+  - LocalAgreement-2: words that match the previous hypothesis are "confirmed"
+  - type only words newly confirmed since last commit, prepended with a space
+  - cap buffer at STREAM_WINDOW_SEC (30s); if exceeded, force-commit current
+    hypothesis and reset (acceptable context boundary at natural pauses)
+  - beam_size=1, condition_on_previous_text=False for each iter
+    (faster + more deterministic for stability)
+
+Added second toggle script (stream-toggle), second symlink (~/bin/dictate-stream-toggle),
+second hotkey (Meta+Shift+H → Data_4_2 in khotkeysrc, bumped Data_4 DataCount to 2).
+
+
+# 8. Universal stop
+
+User: "is it possible to have meta+h to toggle off regardless of the scenario
+since I won't be running them in parallel?"
+
+Refactored Dictator.toggle_batch / toggle_stream to share a _stop_active()
+helper. New behavior: either hotkey stops whatever's active; differs only
+when starting from idle (Meta+H starts batch, Meta+Shift+H starts stream).
+
+
+# 9. Streaming final-flush bug
+
+User: "if I stop streaming now it doesn't catch up to what the last bits I have
+said prior to hitting stop."
+
+Bug in StreamSession._commit's force-flush path: it used
+`confirmed.startswith(self.committed)` to decide what new text to type. But
+Whisper's full-buffer transcription on stop often slightly differs from the
+incremental output (capitalizes the first word of a sentence, adds a trailing
+period, etc.) — so the startswith check fails and the tail gets dropped.
+
+Fix: on force flush, switch to word-count semantics. Trust the word count of
+already-typed text; append everything beyond that, even if Whisper rewrote
+the prefix.
+
+
+# 10. Bug 3: stopping dictation locks the screen (twice)
+
+The most painful one. User reported lock screen freezing twice, on Meta+H
+press to stop dictation. Second time the lock greeter hung — no password
+prompt, frozen clock.
+
+Recovered the hung lock from this shell:
+  loginctl unlock-session 3        # didn't take, greeter was hung
+  kill -9 <kscreenlocker_greet>    # cleared it; LockedHint went to no
+
+Then investigated. Pulled the journal:
+
+  $ grep "Lock" ~/.config/kglobalshortcutsrc
+  Lock Session=Meta+L\tScreensaver,Meta+L\tScreensaver,Lock Session
+
+That's the smoking gun. The race:
+  1. User presses Meta+H to stop dictation (~50ms hold)
+  2. khotkeys fires immediately → script writes to FIFO
+  3. Daemon stops the session and transcribes (100ms–1s for streaming flush)
+  4. xdotool starts typing the result
+  5. User's finger is *still releasing Meta* during step 4 sometimes
+  6. xdotool types an 'l' or 'L' (very common in English text)
+  7. KWin sees fresh Meta+L event → fires Lock Session
+  8. kscreenlocker_greet sometimes gets confused by the burst typing → hangs
+
+Fix: --clearmodifiers on xdotool type. This temporarily releases all held
+modifiers before each keystroke, then re-presses any that were active.
+
+  subprocess.run(["xdotool", "type", "--clearmodifiers", "--delay", "1", "--", text])
+
+Also bumped --delay from 0 to 1 so we're not slamming the X server.
+
+Saved this gotcha as a feedback memory: any future xdotool scripting on this
+workstation must use --clearmodifiers, because Meta+L is the lock shortcut.
+
+
+# Final state of the system
+
+Files in ~/src/dotfiles/dictate-daemon/:
+  daemon                      — Python service, batch + stream modes
+  toggle                      — writes "toggle" to FIFO
+  stream-toggle               — writes "stream-toggle" to FIFO
+  setup                       — idempotent installer
+  initial-development.log     — this file
+
+Symlinks in ~/bin/:
+  dictate-toggle              → dictate-daemon/toggle
+  dictate-stream-toggle       → dictate-daemon/stream-toggle
+
+Venv at ~/.local/share/dictate/venv with:
+  faster-whisper, nvidia-cublas-cu12, nvidia-cudnn-cu12==9.*
+
+Systemd unit at ~/.config/systemd/user/dictate.service:
+  - LD_LIBRARY_PATH set to the venv's nvidia/cublas/lib and nvidia/cudnn/lib
+  - ExecStart launches the venv's python on the daemon
+
+KDE shortcuts in ~/.config/khotkeysrc Data_4 group:
+  - Data_4_1: Meta+H → /home/ack/src/dotfiles/dictate-daemon/toggle
+  - Data_4_2: Meta+Shift+H → /home/ack/src/dotfiles/dictate-daemon/stream-toggle
+
+
+# Behavior summary
+
+  Idle → Meta+H starts batch; Meta+Shift+H starts streaming.
+  Anything active → either hotkey stops it (universal stop).
+
+Batch:
+  - Records to a temp WAV until next toggle.
+  - On stop: transcribe whole file, type result.
+  - Best for prose; latency = inference time (~sub-second on 5080).
+
+Streaming:
+  - Audio piped from arecord into Python every 100ms.
+  - Every 1.5s: re-transcribe full rolling buffer (capped at 30s).
+  - LocalAgreement-2 marks words confirmed; new confirmed words are typed.
+  - On stop: full-buffer transcribe; type any uncommitted words by word-count.
+  - Latency per word: 1.5–3s; punctuation/casing slightly worse than batch.
+
+
+# Lessons / things I'd do differently next time
+
+  1. Validate fixes against the *actual* failure path, not a degenerate test
+     case. The cuBLAS "fix" looked good only because empty audio bypassed CUDA.
+
+  2. On X11, ALWAYS use xdotool --clearmodifiers when typing after a hotkey
+     trigger. The Meta+L lock collision is the obvious one but other Meta-bound
+     shortcuts have the same risk.
+
+  3. khotkeysrc CommandURL needs an absolute path — bare names go through URL
+     handler which falls through to web search.
+
+  4. CTranslate2 / faster-whisper does not auto-find pip-installed CUDA libs
+     via rpath in 4.x; LD_LIBRARY_PATH must be set explicitly in the systemd
+     unit (or some other env mechanism).
+
+  5. For dedicated Python services on Ubuntu 24.04, a per-service venv beats
+     fighting PEP 668. Tiny inconvenience; large robustness gain.

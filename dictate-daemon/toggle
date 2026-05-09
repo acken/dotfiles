@@ -1,0 +1,5 @@
+#!/bin/bash
+# Toggle the Whisper dictation daemon: first call starts recording,
+# second call stops + transcribes + types into the focused window.
+# Bind to a global hotkey (KDE: System Settings -> Shortcuts -> Custom).
+echo toggle > /tmp/dictate.fifo
